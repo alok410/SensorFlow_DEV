@@ -1,73 +1,76 @@
 // src/models/User.js
+
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-
-    password: {
-      type: String,
-      required: true,
-    },
-
+    // 👤 Basic Info
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
+    // 📱 Primary Login Field
+    mobile: {
+      type: String,
+      required: true,
+      unique: true,
+      match: [/^[6-9]\d{9}$/, "Enter valid 10-digit mobile number"],
+      index: true,
+    },
+
+    // 🔐 Role
     role: {
       type: String,
       enum: ["admin", "secretary", "consumer"],
       required: true,
     },
 
-    phone: String,
+    // 🔐 OTP System
+    otp: {
+      type: String, // hashed OTP
+    },
 
+    otpExpiry: {
+      type: Date,
+    },
+
+    isMobileVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    // 📍 Optional Relations
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Location",
     },
 
-
-
-     isMobileVerified: {
-      type: Boolean,
-      default: false,
-    },
-
-
+    // 💧 Consumer-only fields
     meterId: {
       type: String,
-      sparse: true,
       required: function () {
         return this.role === "consumer";
       },
     },
 
-      blockId: {
+    blockId: {
       type: String,
-      sparse: true,
       required: function () {
         return this.role === "consumer";
       },
     },
 
-    // ⭐ NEW FIELD
     serialNumber: {
       type: String,
-      sparse: true,
+      trim: true,
       required: function () {
         return this.role === "consumer";
       },
-      trim: true,
     },
 
+    // ✅ Status
     isActive: {
       type: Boolean,
       default: true,
@@ -76,6 +79,4 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export default mongoose.model("User", userSchema);
