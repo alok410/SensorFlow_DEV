@@ -140,3 +140,35 @@ export const getConsumerById = async (req, res) => {
     });
   }
 };
+
+
+export const deleteConsumer = async (req, res) => {
+  try {
+    const consumer = await User.findOneAndDelete({
+      _id: req.params.id,
+      role: "consumer",
+    });
+
+    if (!consumer) {
+      return res.status(404).json({
+        success: false,
+        message: "Consumer not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Consumer deleted permanently",
+    });
+
+  } catch (error) {
+    console.error("Delete consumer error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
