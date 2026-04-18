@@ -13,7 +13,7 @@ import { authorize } from "../middleware/role.middleware.js";
 const router = express.Router();
 
 
-router.post("/", protect, authorize("admin"), createConsumer);
+router.post("/", protect, createConsumer);
 
 router.get("/", protect, authorize("admin" , "secretary"), getAllConsumers);
 

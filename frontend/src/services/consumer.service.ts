@@ -18,23 +18,27 @@
    CREATE CONSUMER (Admin)
 =================================*/
 export const createConsumer = async (data: {
-  email: string;
-  password: string;
   name: string;
-  phone?: string;
+  mobile: string;        // ✅ REQUIRED
+  email?: string;
   locationId?: string;
   meterId?: string;
-  serialNumber?: string; // ✅ Added
+  serialNumber?: string;
+  blockId?: string;
 }) => {
+  const cleanData = {
+    ...data,
+    mobile: data.mobile.trim(), // ✅ prevent space issues
+  };
+
   const response = await fetch(API_URL, {
     method: "POST",
     headers: getAuthHeader(),
-    body: JSON.stringify(data),
+    body: JSON.stringify(cleanData),
   });
 
   return response.json();
 };
-
   /* =================================
     GET ALL CONSUMERS (Admin)
   =================================*/
@@ -52,18 +56,23 @@ export const createConsumer = async (data: {
   /* =================================
     UPDATE CONSUMER (Admin)
   =================================*/
-  export const updateConsumer = async (
-    id: string,
-    data: any
-  ) => {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: "PUT",
-      headers: getAuthHeader(),
-      body: JSON.stringify(data),
-    });
-
-    return response.json();
+export const updateConsumer = async (
+  id: string,
+  data: any
+) => {
+  const cleanData = {
+    ...data,
+    mobile: data.mobile?.trim(),
   };
+
+  const response = await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+    body: JSON.stringify(cleanData),
+  });
+
+  return response.json();
+};
 
 
   /* =================================

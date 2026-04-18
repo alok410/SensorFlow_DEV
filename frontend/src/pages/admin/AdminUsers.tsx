@@ -66,14 +66,14 @@ const AdminUsers = () => {
 const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 const [submitting, setSubmitting] = useState(false);
 const [deleting, setDeleting] = useState(false);
- const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
   name: "",
+  mobile: "",   // ✅ ADD THIS
   email: "",
   meterId: "",
   serialNumber: "",
-    blockId: "",     // ✅ added
+  blockId: "",
   locationId: "",
-  password: "",
 });
 
   /* ================= LOAD DATA ================= */
@@ -175,13 +175,13 @@ const loadData = async () => {
 
 const resetForm = () => {
   setFormData({
-    name: "",
-    email: "",
-    meterId: "",
-    serialNumber: "",
-    blockId: "",     // ✅ added
-    locationId: "",
-    password: "",
+   name: "",
+  mobile: "",   // ✅ ADD THIS
+  email: "",
+  meterId: "",
+  serialNumber: "",
+  blockId: "",
+  locationId: "",
   });
   setEditingConsumer(null);
 };
@@ -189,14 +189,14 @@ const resetForm = () => {
   const openDialog = (consumer?: any) => {
     if (consumer) {
       setEditingConsumer(consumer);
-     setFormData({
+    setFormData({
   name: consumer.name,
+  mobile: consumer.mobile || "", // ✅ ADD
   email: consumer.email,
   meterId: consumer.meterId,
   serialNumber: consumer.serialNumber || "",
   blockId: consumer.blockId || "",
   locationId: consumer.locationId,
-  password: "",
 });
     } else {
       resetForm();
@@ -501,7 +501,15 @@ const handleDelete = async () => {
                 }
                 required
               />
-
+<Input
+  type="tel"
+  placeholder="Mobile Number"
+  value={formData.mobile}
+  onChange={(e) =>
+    setFormData({ ...formData, mobile: e.target.value })
+  }
+  required
+/>
               <Input
                 type="email"
                 placeholder="Email"
@@ -555,18 +563,7 @@ const handleDelete = async () => {
                 </SelectContent>
               </Select>
 
-              {!editingConsumer && (
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required
-                />
-              )}
-
+        
               <DialogFooter>
               <Button type="submit" disabled={submitting}>
   {submitting ? (
