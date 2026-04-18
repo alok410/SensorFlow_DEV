@@ -12,7 +12,7 @@ export const sendOTP = async (req, res) => {
       return res.status(400).json({ message: "Mobile required" });
     }
 
-    let user = await User.findOne({ mobile });
+    const user = await User.findOne({ mobile });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -28,36 +28,19 @@ export const sendOTP = async (req, res) => {
 
     user.otp = hashedOTP;
     user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
     await user.save();
 
-    /* ================= SEND SMS ================= */
-    await axios.post(
-      "https://www.fast2sms.com/dev/bulkV2",
-      {
-        route: "otp",
-        message: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-        language: "english",
-        flash: 0,
-        numbers: mobile,
-      },
-      {
-        headers: {
-          authorization: process.env.FAST2SMS_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // ✅ TEST MODE
+    console.log("OTP (TEST MODE):", otp);
 
     res.json({
-      message: "OTP sent successfully",
+      message: "OTP generated (check server log)",
     });
 
   } catch (error) {
-    console.error("Send OTP error:", error.response?.data || error.message);
-
-    res.status(500).json({
-      message: "Failed to send OTP",
-    });
+    console.error("Send OTP error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 /* ================= VERIFY OTP ================= */
