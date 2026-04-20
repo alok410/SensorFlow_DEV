@@ -9,13 +9,13 @@ import { protect } from "../middleware/auth.middleware.js";
 const router = express.Router();
 
 
-router.post("/generate", generateInvoice);
-router.get("/", getInvoices);
-router.get("/my", getMyInvoices);
-router.put("/:id/pay-cash", markInvoicePaid);
-router.post("/verify-payment", verifyPayment);
+router.post("/generate",protect, generateInvoice);
+router.get("/",protect, getInvoices);
+router.get("/my", protect,getMyInvoices);
+router.put("/:id/pay-cash",protect, markInvoicePaid);
+router.post("/verify-payment", protect,verifyPayment);
 router.put("/:id/cancel",protect, cancelInvoice);
-router.get("/:id", getInvoiceById);
+router.get("/:id", protect,getInvoiceById);
 
 
 
