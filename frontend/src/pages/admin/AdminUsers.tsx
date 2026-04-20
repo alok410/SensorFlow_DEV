@@ -69,7 +69,7 @@ const [deleting, setDeleting] = useState(false);
 const [formData, setFormData] = useState({
   name: "",
   mobile: "",   // ✅ ADD THIS
-  email: "",
+ 
   meterId: "",
   serialNumber: "",
   blockId: "",
@@ -177,7 +177,7 @@ const resetForm = () => {
   setFormData({
    name: "",
   mobile: "",   // ✅ ADD THIS
-  email: "",
+
   meterId: "",
   serialNumber: "",
   blockId: "",
@@ -192,7 +192,6 @@ const resetForm = () => {
     setFormData({
   name: consumer.name,
   mobile: consumer.mobile || "", // ✅ ADD
-  email: consumer.email,
   meterId: consumer.meterId,
   serialNumber: consumer.serialNumber || "",
   blockId: consumer.blockId || "",
@@ -394,11 +393,13 @@ const handleDelete = async () => {
       Name {sortColumn === "name" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
     </TableHead>
         <TableHead
-      onClick={() => handleSort("email")}
+      onClick={() => handleSort("mobile")}
       className="cursor-pointer select-none"
     >
-      Email {sortColumn === "email" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+      mobile {sortColumn === "mobile" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
     </TableHead>
+    
+    
         <TableHead
       onClick={() => handleSort("CityName")}
       className="cursor-pointer select-none"
@@ -429,6 +430,7 @@ const handleDelete = async () => {
     >
       Status {sortColumn === "usage" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
     </TableHead>
+    
 
   </TableRow>
 </TableHeader>
@@ -439,7 +441,7 @@ const handleDelete = async () => {
                           <TableCell>{c.blockId}</TableCell>
 
                           <TableCell>{c.name}</TableCell>
-                          <TableCell>{c.email}</TableCell>
+                          <TableCell>{c.mobile}</TableCell>
                           <TableCell>
                             {
                               locations.find(
@@ -510,15 +512,7 @@ const handleDelete = async () => {
   }
   required
 />
-              <Input
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                required
-              />
+             
 
               <Input
                 placeholder="Meter ID"

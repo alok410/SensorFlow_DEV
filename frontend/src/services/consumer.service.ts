@@ -1,4 +1,4 @@
-  const API_URL = "https://sensor-flow-nbgt.vercel.app/api/consumers";
+  const API_URL =` ${import.meta.env.VITE_API_URL}/consumers`;
 
   /* =================================
     Helper: Get Auth Header
