@@ -8,7 +8,7 @@ export const generateInvoice = async (req, res) => {
     const { consumerId, locationId, totalUsage, month } = req.body;
 
     // 🔹 Get current rate
-    const rateData = await WaterRate.findOne();
+    const rateData = await WaterRate.findOne().sort({ updatedAt: -1 });
     if (!rateData) {
       return res.status(400).json({ message: "Water rate not set" });
     }
