@@ -4,18 +4,53 @@ import {
      markInvoicePaid, verifyPayment, cancelInvoice
 } from "../controllers/invoice.controller.js"
 import { protect } from "../middleware/auth.middleware.js";
+import { authorize } from "../middleware/role.middleware.js";
 
 
 const router = express.Router();
 
 
-router.post("/generate",protect, generateInvoice);
-router.get("/",protect, getInvoices);
-router.get("/my", protect,getMyInvoices);
-router.put("/:id/pay-cash",protect, markInvoicePaid);
-router.post("/verify-payment", protect,verifyPayment);
-router.put("/:id/cancel",protect, cancelInvoice);
-router.get("/:id", protect,getInvoiceById);
+router.post("/generate",
+  protect,
+  authorize("admin"),
+  generateInvoice
+);
+
+router.get("/",
+  protect,
+  authorize("admin"),
+  getInvoices
+);
+
+router.get("/my",
+  protect,
+  authorize("consumer"),
+  getMyInvoices
+);
+
+router.put("/:id/pay-cash",
+  protect,
+  authorize("secretary"),
+  markInvoicePaid
+);
+
+router.post("/verify-payment",
+  protect,
+  authorize("consumer"),
+  verifyPayment
+);
+
+router.put("/:id/cancel",
+  protect,
+  authorize("admin"),
+  cancelInvoice
+);
+
+router.get("/:id",
+  protect,
+  authorize("admin", "consumer", "secretary"),
+  getInvoiceById
+);
 
 
 
