@@ -1,6 +1,7 @@
 import express from "express";
 import {
-    generateInvoice, getInvoices, getInvoiceById, getMyInvoices, markInvoicePaid, verifyPayment, cancelInvoice
+    generateInvoice, getInvoices, getInvoiceById, getMyInvoices,
+     markInvoicePaid, verifyPayment, cancelInvoice
 } from "../controllers/invoice.controller.js"
 
 

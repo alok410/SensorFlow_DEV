@@ -152,6 +152,8 @@ export const cancelInvoice = async (req, res) => {
 
     invoice.status = "cancelled";
     invoice.cancelledBy = req.user.userId;
+    console.log(invoice.cancelledBy);
+    
     invoice.cancelReason = reason;
     invoice.cancelledAt = new Date();
 
