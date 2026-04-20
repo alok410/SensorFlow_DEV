@@ -1,7 +1,7 @@
 import express from "express";
 import {
     generateInvoice, getInvoices, getInvoiceById, getMyInvoices, markInvoicePaid, verifyPayment, cancelInvoice
-} from "../controllers/invoice.controller"
+} from "../controllers/invoice.controller.js"
 
 
 const router = express.Router();
