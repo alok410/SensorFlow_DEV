@@ -17,37 +17,49 @@ const invoiceSchema = new mongoose.Schema(
       index: true,
     },
 
-    // 📅 BILLING MONTH
+    // 📅 BILLING MONTH (format: "YYYY-MM")
     month: {
-      type: String, // format: "2026-04"
+      type: String,
       required: true,
       index: true,
     },
 
-    // 💧 USAGE + BILLING SNAPSHOT
+    // 💧 USAGE SNAPSHOT
     totalUsage: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     limit: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     extraUsage: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     ratePerLiter: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     amount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+
+    // 💰 DUE (for partial payment support)
+    dueAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     // 💳 PAYMENT STATUS
@@ -60,7 +72,7 @@ const invoiceSchema = new mongoose.Schema(
 
     paymentMode: {
       type: String,
-      enum: ["cash", "online", null],
+      enum: ["cash", "online", "wallet", null],
       default: null,
     },
 
@@ -78,7 +90,7 @@ const invoiceSchema = new mongoose.Schema(
     },
 
     paidByName: {
-      type: String, // snapshot for history
+      type: String, // snapshot
       default: null,
     },
 
@@ -98,7 +110,29 @@ const invoiceSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ❌ CANCEL CONTROL (ADMIN)
+    // 💼 WALLET SUPPORT
+    paidFromWallet: {
+      type: Boolean,
+      default: false,
+    },
+
+    walletAmountUsed: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    walletBalanceBefore: {
+      type: Number,
+      default: 0,
+    },
+
+    walletBalanceAfter: {
+      type: Number,
+      default: 0,
+    },
+
+    // ❌ CANCEL CONTROL
     cancelledBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -126,7 +160,10 @@ const invoiceSchema = new mongoose.Schema(
   }
 );
 
-// 🚀 prevent duplicate invoice per user per month
+// 🚀 Prevent duplicate invoice per user per month
 invoiceSchema.index({ consumerId: 1, month: 1 }, { unique: true });
+
+// ⚡ Faster filtering
+invoiceSchema.index({ status: 1 });
 
 export default mongoose.model("Invoice", invoiceSchema);

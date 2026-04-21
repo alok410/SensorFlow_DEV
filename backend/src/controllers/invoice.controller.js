@@ -3,14 +3,23 @@ import Invoice from "../models/Invoice.js";
 import WaterRate from "../models/WaterRate.js";
 
 
+import mongoose from "mongoose";
+import Invoice from "../models/Invoice.js";
+import WaterRate from "../models/WaterRate.js";
+import Wallet from "../models/Wallet.js";
+import WalletTransaction from "../models/WalletTransaction.js";
+
 export const generateInvoice = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { consumerId, locationId, totalUsage, month } = req.body;
 
-    // 🔹 Get current rate
+    // 🔹 Get rate
     const rateData = await WaterRate.findOne().sort({ updatedAt: -1 });
     if (!rateData) {
-      return res.status(400).json({ message: "Water rate not set" });
+      throw new Error("Water rate not set");
     }
 
     const { ratePerLiter, freeTierLiters } = rateData;
@@ -22,9 +31,26 @@ export const generateInvoice = async (req, res) => {
     // 🔹 Prevent duplicate
     const existing = await Invoice.findOne({ consumerId, month });
     if (existing) {
-      return res.status(400).json({ message: "Invoice already exists" });
+      throw new Error("Invoice already exists");
     }
 
+    // 🔹 Get/Create wallet
+    let wallet = await Wallet.findOne({ consumerId }).session(session);
+    if (!wallet) {
+      wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
+      wallet = wallet[0];
+    }
+
+    const beforeBalance = wallet.balance;
+
+    // 🔹 Wallet deduction logic
+    const walletUsed = Math.min(wallet.balance, amount);
+    const dueAmount = amount - walletUsed;
+
+    wallet.balance -= walletUsed;
+    await wallet.save({ session });
+
+    // 🔹 Create invoice
     const invoice = new Invoice({
       consumerId,
       locationId,
@@ -34,17 +60,46 @@ export const generateInvoice = async (req, res) => {
       extraUsage,
       ratePerLiter,
       amount,
+
+      dueAmount,
+
+      // wallet fields
+      paidFromWallet: walletUsed > 0,
+      walletAmountUsed: walletUsed,
+      walletBalanceBefore: beforeBalance,
+      walletBalanceAfter: wallet.balance,
+
+      // status logic
+      status: dueAmount === 0 ? "paid" : "pending",
+      paymentMode: walletUsed > 0 ? "wallet" : null,
+      paidAt: dueAmount === 0 ? new Date() : null,
+      isLocked: dueAmount === 0,
     });
 
-    await invoice.save();
+    await invoice.save({ session });
+
+    // 🔹 Log transaction
+    if (walletUsed > 0) {
+      await WalletTransaction.create([{
+        consumerId,
+        type: "debit",
+        amount: walletUsed,
+        method: "auto",
+        note: `Invoice ${month}`,
+      }], { session });
+    }
+
+    await session.commitTransaction();
 
     res.json({ message: "Invoice generated", data: invoice });
 
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({ message: error.message });
+  } finally {
+    session.endSession();
   }
 };
-
 
 export const getInvoices = async (req, res) => {
   try {
@@ -92,6 +147,7 @@ export const markInvoicePaid = async (req, res) => {
     invoice.paidByName = req.user.name;
     invoice.paidAt = new Date();
     invoice.isLocked = true;
+    invoice.dueAmount = 0;
 
     await invoice.save();
 
@@ -126,6 +182,7 @@ export const verifyPayment = async (req, res) => {
     invoice.orderId = orderId;
     invoice.paidAt = new Date();
     invoice.isLocked = true;
+    invoice.dueAmount = 0;
 
     await invoice.save();
 

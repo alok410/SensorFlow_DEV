@@ -28,7 +28,7 @@ export const createConsumer = async (data: {
 }) => {
   const cleanData = {
     ...data,
-    mobile: data.mobile.trim(), // ✅ prevent space issues
+    mobile: data.mobile.trim(), // ✅ prevent space issues 
   };
 
   const response = await fetch(API_URL, {

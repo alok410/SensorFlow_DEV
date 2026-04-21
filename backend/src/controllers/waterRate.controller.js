@@ -1,4 +1,4 @@
-import WaterRate from "../models/WaterRate.js";
+ import WaterRate from "../models/WaterRate.js";
 
 // GET latest rate
 export const getWaterRate = async (req, res) => {

@@ -10,6 +10,7 @@ import consumerRoutes from "./routes/consumer.routes.js";
 import meterRoutes from "./routes/meter.routes.js";
 import waterRateRoutes from "./routes/waterRate.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
+import walletRoutes from "./routes/wallet.routes.js";
 
 
 const app = express();
@@ -25,7 +26,7 @@ app.use("/api/secretaries", secretaryRoutes);
 app.use("/api/consumers", consumerRoutes);
 app.use("/api/meter", meterRoutes);
 app.use("/api/invoice",invoiceRoutes );
-
+app.use("/api/wallet", walletRoutes);
 
 app.use("/api/water-rate", waterRateRoutes);
 
