@@ -13,6 +13,7 @@ export const generateInvoice = async (req, res) => {
 
   try {
     const { consumerId, locationId, totalUsage, month } = req.body;
+console.log(consumerId,locationId,month,totalUsage);
 
     // ✅ VALIDATION
     if (!consumerId || !locationId || !totalUsage || !month) {
