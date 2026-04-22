@@ -209,39 +209,51 @@ const handleSubmit = async (e: React.FormEvent) => {
   try {
     setSubmitting(true);
 
+    // ✅ Basic validation
+    if (!formData.mobile || formData.mobile.trim().length !== 10) {
+      throw new Error("Enter valid 10-digit mobile number");
+    }
+
+    let updatedList = [];
+
     if (editingConsumer) {
-  const updatedConsumer = await updateConsumer(editingConsumer._id, formData);
+      const res = await updateConsumer(editingConsumer._id, formData);
 
-const updatedList = consumers.map(c =>
-  c._id === editingConsumer._id ? (updatedConsumer.data || updatedConsumer) : c
-);
+      console.log("✏️ Update Response:", res);
 
-setConsumers(updatedList);
-localStorage.setItem("consumers", JSON.stringify(updatedList));
-      setConsumers(updatedList);
-      localStorage.setItem("consumers", JSON.stringify(updatedList));
+      const updatedConsumer = res.data || res;
+
+      updatedList = consumers.map((c) =>
+        c._id === editingConsumer._id ? updatedConsumer : c
+      );
 
       toast({ title: "Consumer Updated" });
 
     } else {
       const res = await createConsumer(formData);
-const newConsumer = res.data || res;
 
-      const updatedList = [...consumers, newConsumer];
+      console.log("➕ Create Response:", res);
 
-      setConsumers(updatedList);
-      localStorage.setItem("consumers", JSON.stringify(updatedList));
+      const newConsumer = res.data || res;
+
+      updatedList = [...consumers, newConsumer];
 
       toast({ title: "Consumer Created" });
     }
 
-    // ✅ MUST be inside try
+    // ✅ Single update
+    setConsumers(updatedList);
+    localStorage.setItem("consumers", JSON.stringify(updatedList));
+
+    // ✅ Close + reset
     setIsDialogOpen(false);
     resetForm();
 
-  } catch {
+  } catch (err: any) {
+    console.error("❌ Submit Error:", err);
+
     toast({
-      title: "Operation Failed",
+      title: err.message || "Operation Failed",
       variant: "destructive",
     });
   } finally {

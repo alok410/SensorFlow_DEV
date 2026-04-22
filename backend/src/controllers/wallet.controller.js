@@ -4,7 +4,7 @@ import WalletTransaction from "../models/WalletTransaction.js";
 export const rechargeWallet = async (req, res) => {
   try {
     const { amount, method = "cash" } = req.body;
-    const consumerId = req.user.userId;
+    const consumerId = req.user.id;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: "Invalid amount" });
@@ -43,7 +43,7 @@ export const rechargeWallet = async (req, res) => {
 ================================*/
 export const getMyWallet = async (req, res) => {
   try {
-    const consumerId = req.user.userId;
+    const consumerId = req.user.id;
 
     let wallet = await Wallet.findOne({ consumerId });
 
@@ -66,7 +66,7 @@ export const getMyWallet = async (req, res) => {
 ================================*/
 export const getMyTransactions = async (req, res) => {
   try {
-    const consumerId = req.user.userId;
+    const consumerId = req.user.id;
 
     const transactions = await WalletTransaction.find({ consumerId })
       .sort({ createdAt: -1 });

@@ -1,4 +1,4 @@
-  const API_URL =` ${import.meta.env.VITE_API_URL}/consumers`;
+const API_URL = `${import.meta.env.VITE_API_URL}/consumers`;
 
   /* =================================
     Helper: Get Auth Header
@@ -17,18 +17,11 @@
     /* =================================
    CREATE CONSUMER (Admin)
 =================================*/
-export const createConsumer = async (data: {
-  name: string;
-  mobile: string;        // ✅ REQUIRED
-  email?: string;
-  locationId?: string;
-  meterId?: string;
-  serialNumber?: string;
-  blockId?: string;
-}) => {
+export const createConsumer = async (data: any) => {
   const cleanData = {
     ...data,
-    mobile: data.mobile.trim(), // ✅ prevent space issues 
+    mobile: data.mobile.trim(),
+    ...(data.email ? { email: data.email } : {}),
   };
 
   const response = await fetch(API_URL, {
@@ -37,7 +30,15 @@ export const createConsumer = async (data: {
     body: JSON.stringify(cleanData),
   });
 
-  return response.json();
+  const result = await response.json();
+
+  // 🔥 THIS IS IMPORTANT
+  if (!response.ok) {
+    console.error("❌ Backend Error:", result); // see full error in console
+    throw new Error(result.message || "Something went wrong");
+  }
+
+  return result;
 };
   /* =================================
     GET ALL CONSUMERS (Admin)
