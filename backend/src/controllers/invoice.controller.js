@@ -14,25 +14,33 @@ export const generateInvoice = async (req, res) => {
   try {
     const { consumerId, locationId, totalUsage, month } = req.body;
 
+    // ✅ VALIDATION
+    if (!consumerId || !locationId || !totalUsage || !month) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     // 🔹 Get rate
-    const rateData = await WaterRate.findOne().sort({ updatedAt: -1 });
+    const rateData = await WaterRate.findOne()
+      .sort({ updatedAt: -1 })
+      .session(session);
+
     if (!rateData) {
       throw new Error("Water rate not set");
     }
 
     const { ratePerLiter, freeTierLiters } = rateData;
 
-    // 🔹 Calculate
-    const extraUsage = Math.max(0, totalUsage - freeTierLiters);
-    const amount = extraUsage * ratePerLiter;
-
-    // 🔹 Prevent duplicate
-    const existing = await Invoice.findOne({ consumerId, month });
+    // 🔹 Prevent duplicate (with session)
+    const existing = await Invoice.findOne({ consumerId, month }).session(session);
     if (existing) {
       throw new Error("Invoice already exists");
     }
 
-    // 🔹 Get/Create wallet
+    // 🔹 Calculate
+    const extraUsage = Math.max(0, totalUsage - freeTierLiters);
+    const amount = extraUsage * ratePerLiter;
+
+    // 🔹 Wallet
     let wallet = await Wallet.findOne({ consumerId }).session(session);
     if (!wallet) {
       wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
@@ -41,15 +49,14 @@ export const generateInvoice = async (req, res) => {
 
     const beforeBalance = wallet.balance;
 
-    // 🔹 Wallet deduction logic
     const walletUsed = Math.min(wallet.balance, amount);
     const dueAmount = amount - walletUsed;
 
-    wallet.balance -= walletUsed;
+    wallet.balance = Math.max(0, wallet.balance - walletUsed);
     await wallet.save({ session });
 
-    // 🔹 Create invoice
-    const invoice = new Invoice({
+    // 🔹 Invoice
+    const invoice = await Invoice.create([{
       consumerId,
       locationId,
       month,
@@ -58,25 +65,20 @@ export const generateInvoice = async (req, res) => {
       extraUsage,
       ratePerLiter,
       amount,
-
       dueAmount,
 
-      // wallet fields
       paidFromWallet: walletUsed > 0,
       walletAmountUsed: walletUsed,
       walletBalanceBefore: beforeBalance,
       walletBalanceAfter: wallet.balance,
 
-      // status logic
       status: dueAmount === 0 ? "paid" : "pending",
       paymentMode: walletUsed > 0 ? "wallet" : null,
       paidAt: dueAmount === 0 ? new Date() : null,
       isLocked: dueAmount === 0,
-    });
+    }], { session });
 
-    await invoice.save({ session });
-
-    // 🔹 Log transaction
+    // 🔹 Transaction log
     if (walletUsed > 0) {
       await WalletTransaction.create([{
         consumerId,
@@ -89,16 +91,23 @@ export const generateInvoice = async (req, res) => {
 
     await session.commitTransaction();
 
-    res.json({ message: "Invoice generated", data: invoice });
+    res.status(201).json({
+      message: "Invoice generated",
+      data: invoice[0],
+    });
 
   } catch (error) {
     await session.abortTransaction();
+
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Invoice already exists" });
+    }
+
     res.status(500).json({ message: error.message });
   } finally {
     session.endSession();
   }
 };
-
 export const getInvoices = async (req, res) => {
   try {
     const invoices = await Invoice.find()
