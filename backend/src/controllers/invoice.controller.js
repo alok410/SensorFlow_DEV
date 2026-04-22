@@ -123,7 +123,7 @@ export const getInvoices = async (req, res) => {
 
 export const getMyInvoices = async (req, res) => {
   try {
-    const consumerId = req.user.userId;
+    const consumerId = req.user.id;
 
     const invoices = await Invoice.find({ consumerId })
       .sort({ createdAt: -1 });
