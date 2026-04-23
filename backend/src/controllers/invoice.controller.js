@@ -1,26 +1,24 @@
-
 import Invoice from "../models/Invoice.js";
 import WaterRate from "../models/WaterRate.js";
-
-
-import mongoose from "mongoose";
 import Wallet from "../models/wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
+import mongoose from "mongoose";
 
+/* =================================
+   GENERATE INVOICE (ADMIN)
+=================================*/
 export const generateInvoice = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { consumerId, locationId, totalUsage, month } = req.body;
-console.log(consumerId,locationId,month,totalUsage);
 
-    // ✅ VALIDATION
     if (!consumerId || !locationId || !totalUsage || !month) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 🔹 Get rate
+    // 🔹 Get latest rate
     const rateData = await WaterRate.findOne()
       .sort({ updatedAt: -1 })
       .session(session);
@@ -31,7 +29,7 @@ console.log(consumerId,locationId,month,totalUsage);
 
     const { ratePerLiter, freeTierLiters } = rateData;
 
-    // 🔹 Prevent duplicate (with session)
+    // 🔹 Prevent duplicate
     const existing = await Invoice.findOne({ consumerId, month }).session(session);
     if (existing) {
       throw new Error("Invoice already exists");
@@ -41,56 +39,39 @@ console.log(consumerId,locationId,month,totalUsage);
     const extraUsage = Math.max(0, totalUsage - freeTierLiters);
     const amount = extraUsage * ratePerLiter;
 
-// 🔹 Wallet (NO auto deduction)
-let wallet = await Wallet.findOne({ consumerId }).session(session);
+    // 🔹 Wallet (NO deduction here)
+    let wallet = await Wallet.findOne({ consumerId }).session(session);
 
-if (!wallet) {
-  wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
-  wallet = wallet[0];
-}
+    if (!wallet) {
+      wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
+      wallet = wallet[0];
+    }
 
-const beforeBalance = wallet.balance;
+    const beforeBalance = wallet.balance;
 
-// ❌ No deduction at invoice time
-const walletUsed = 0;
-const dueAmount = amount;
-
-    wallet.balance = Math.max(0, wallet.balance - walletUsed);
-    await wallet.save({ session });
-
-    // 🔹 Invoice
+    // 🔹 Create invoice (ALWAYS pending)
     const invoice = await Invoice.create([{
       consumerId,
       locationId,
       month,
       totalUsage,
       limit: freeTierLiters,
-      extraUsage, 
+      extraUsage,
       ratePerLiter,
       amount,
-      dueAmount,
 
-      paidFromWallet: walletUsed > 0,
-      walletAmountUsed: walletUsed,
+      dueAmount: amount,
+
+      paidFromWallet: false,
+      walletAmountUsed: 0,
       walletBalanceBefore: beforeBalance,
-      walletBalanceAfter: wallet.balance,
+      walletBalanceAfter: beforeBalance,
 
-      status: dueAmount === 0 ? "paid" : "pending",
-      paymentMode: walletUsed > 0 ? "wallet" : null,
-      paidAt: dueAmount === 0 ? new Date() : null,
-      isLocked: dueAmount === 0,
+      status: "pending",
+      paymentMode: null,
+      paidAt: null,
+      isLocked: false,
     }], { session });
-
-    // 🔹 Transaction log
-    if (walletUsed > 0) {
-      await WalletTransaction.create([{
-        consumerId,
-        type: "debit",
-        amount: walletUsed,
-        method: "auto",
-        note: `Invoice ${month}`,
-      }], { session });
-    }
 
     await session.commitTransaction();
 
@@ -111,6 +92,11 @@ const dueAmount = amount;
     session.endSession();
   }
 };
+
+
+/* =================================
+   GET ALL INVOICES (ADMIN)
+=================================*/
 export const getInvoices = async (req, res) => {
   try {
     const invoices = await Invoice.find()
@@ -123,6 +109,10 @@ export const getInvoices = async (req, res) => {
   }
 };
 
+
+/* =================================
+   GET MY INVOICES (CONSUMER)
+=================================*/
 export const getMyInvoices = async (req, res) => {
   try {
     const consumerId = req.user.id;
@@ -137,6 +127,75 @@ export const getMyInvoices = async (req, res) => {
 };
 
 
+/* =================================
+   PAY FROM WALLET (CONSUMER)
+=================================*/
+export const payFromWallet = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    // 🔐 SECURITY
+    if (invoice.consumerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    if (invoice.status === "paid") {
+      return res.status(400).json({ message: "Already paid" });
+    }
+
+    let wallet = await Wallet.findOne({ consumerId: invoice.consumerId });
+
+    if (!wallet || wallet.balance <= 0) {
+      return res.status(400).json({ message: "Insufficient wallet balance" });
+    }
+
+    const walletUsed = Math.min(wallet.balance, invoice.dueAmount);
+
+    wallet.balance -= walletUsed;
+    await wallet.save();
+
+    // 🔹 Update invoice
+    invoice.walletAmountUsed += walletUsed;
+    invoice.dueAmount -= walletUsed;
+    invoice.paidFromWallet = true;
+
+    if (invoice.dueAmount === 0) {
+      invoice.status = "paid";
+      invoice.paymentMode = "wallet";
+      invoice.paidAt = new Date();
+      invoice.isLocked = true;
+    }
+
+    await invoice.save();
+
+    // 🔹 Log transaction
+    await WalletTransaction.create({
+      consumerId: invoice.consumerId,
+      type: "debit",
+      amount: walletUsed,
+      method: "wallet",
+      note: `Invoice payment ${invoice.month}`,
+    });
+
+    res.json({
+      message: "Paid from wallet",
+      data: invoice,
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+/* =================================
+   CASH PAYMENT (SECRETARY)
+=================================*/
 export const markInvoicePaid = async (req, res) => {
   try {
     const { id } = req.params;
@@ -153,8 +212,7 @@ export const markInvoicePaid = async (req, res) => {
     invoice.status = "paid";
     invoice.paymentMode = "cash";
     invoice.paidByRole = "secretary";
-    invoice.paidById = req.user.userId;
-    invoice.paidByName = req.user.name;
+    invoice.paidById = req.user.id;
     invoice.paidAt = new Date();
     invoice.isLocked = true;
     invoice.dueAmount = 0;
@@ -168,6 +226,10 @@ export const markInvoicePaid = async (req, res) => {
   }
 };
 
+
+/* =================================
+   ONLINE PAYMENT VERIFY
+=================================*/
 export const verifyPayment = async (req, res) => {
   try {
     const { invoiceId, paymentId, orderId } = req.body;
@@ -181,13 +243,10 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ message: "Already paid" });
     }
 
-    // 🔐 (Add signature verification here if using Razorpay)
-
     invoice.status = "paid";
     invoice.paymentMode = "online";
     invoice.paidByRole = "consumer";
-    invoice.paidById = req.user.userId;
-    invoice.paidByName = req.user.name;
+    invoice.paidById = req.user.id;
     invoice.paymentId = paymentId;
     invoice.orderId = orderId;
     invoice.paidAt = new Date();
@@ -203,12 +262,17 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
+
+/* =================================
+   CANCEL INVOICE (ADMIN)
+=================================*/
 export const cancelInvoice = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
 
     const invoice = await Invoice.findById(id);
+
     if (!invoice) {
       return res.status(404).json({ message: "Invoice not found" });
     }
@@ -218,9 +282,7 @@ export const cancelInvoice = async (req, res) => {
     }
 
     invoice.status = "cancelled";
-    invoice.cancelledBy = req.user.userId;
-    console.log(invoice.cancelledBy);
-    
+    invoice.cancelledBy = req.user.id;
     invoice.cancelReason = reason;
     invoice.cancelledAt = new Date();
 
@@ -234,6 +296,9 @@ export const cancelInvoice = async (req, res) => {
 };
 
 
+/* =================================
+   GET INVOICE BY ID
+=================================*/
 export const getInvoiceById = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
@@ -244,52 +309,8 @@ export const getInvoiceById = async (req, res) => {
     }
 
     res.json(invoice);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
-};
-
-export const payFromWallet = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const invoice = await Invoice.findById(id);
-    if (!invoice) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    if (invoice.status === "paid") {
-      return res.status(400).json({ message: "Already paid" });
-    }
-
-    let wallet = await Wallet.findOne({ consumerId: invoice.consumerId });
-    if (!wallet || wallet.balance <= 0) {
-      return res.status(400).json({ message: "Insufficient wallet balance" });
-    }
-
-    const walletUsed = Math.min(wallet.balance, invoice.dueAmount);
-
-    wallet.balance -= walletUsed;
-    await wallet.save();
-
-    invoice.walletAmountUsed += walletUsed;
-    invoice.dueAmount -= walletUsed;
-
-    if (invoice.dueAmount === 0) {
-      invoice.status = "paid";
-      invoice.paymentMode = "wallet";
-      invoice.paidAt = new Date();
-      invoice.isLocked = true;
-    }
-
-    await invoice.save();
-
-    res.json({
-      message: "Paid from wallet",
-      data: invoice
-    });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
   }
 };
