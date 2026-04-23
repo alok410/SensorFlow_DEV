@@ -246,3 +246,48 @@ export const getInvoiceById = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const payFromWallet = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    if (invoice.status === "paid") {
+      return res.status(400).json({ message: "Already paid" });
+    }
+
+    let wallet = await Wallet.findOne({ consumerId: invoice.consumerId });
+    if (!wallet || wallet.balance <= 0) {
+      return res.status(400).json({ message: "Insufficient wallet balance" });
+    }
+
+    const walletUsed = Math.min(wallet.balance, invoice.dueAmount);
+
+    wallet.balance -= walletUsed;
+    await wallet.save();
+
+    invoice.walletAmountUsed += walletUsed;
+    invoice.dueAmount -= walletUsed;
+
+    if (invoice.dueAmount === 0) {
+      invoice.status = "paid";
+      invoice.paymentMode = "wallet";
+      invoice.paidAt = new Date();
+      invoice.isLocked = true;
+    }
+
+    await invoice.save();
+
+    res.json({
+      message: "Paid from wallet",
+      data: invoice
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
