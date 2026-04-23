@@ -41,17 +41,19 @@ console.log(consumerId,locationId,month,totalUsage);
     const extraUsage = Math.max(0, totalUsage - freeTierLiters);
     const amount = extraUsage * ratePerLiter;
 
-    // 🔹 Wallet
-    let wallet = await Wallet.findOne({ consumerId }).session(session);
-    if (!wallet) {
-      wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
-      wallet = wallet[0];
-    }
+// 🔹 Wallet (NO auto deduction)
+let wallet = await Wallet.findOne({ consumerId }).session(session);
 
-    const beforeBalance = wallet.balance;
+if (!wallet) {
+  wallet = await Wallet.create([{ consumerId, balance: 0 }], { session });
+  wallet = wallet[0];
+}
 
-    const walletUsed = Math.min(wallet.balance, amount);
-    const dueAmount = amount - walletUsed;
+const beforeBalance = wallet.balance;
+
+// ❌ No deduction at invoice time
+const walletUsed = 0;
+const dueAmount = amount;
 
     wallet.balance = Math.max(0, wallet.balance - walletUsed);
     await wallet.save({ session });
@@ -63,7 +65,7 @@ console.log(consumerId,locationId,month,totalUsage);
       month,
       totalUsage,
       limit: freeTierLiters,
-      extraUsage,
+      extraUsage, 
       ratePerLiter,
       amount,
       dueAmount,
