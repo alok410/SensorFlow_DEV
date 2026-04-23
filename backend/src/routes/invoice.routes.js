@@ -19,7 +19,7 @@ router.post("/generate",
 router.get("/",
   protect,
   authorize("admin"),
-  getInvoices
+  getInvoicesn 
 );
 
 router.get("/my",
@@ -51,6 +51,10 @@ router.get("/:id",
   authorize("admin", "consumer", "secretary"),
   getInvoiceById
 );
+router.put("/:id/pay-wallet", 
+  protect,
+  authorize("consumer"), 
+  payFromWallet);
 
 
 
