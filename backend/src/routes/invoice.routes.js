@@ -20,7 +20,7 @@ router.post("/generate",
 router.get("/",
   protect,
   authorize("admin"),
-  getInvoicesn 
+  getInvoices
 );
 
 router.get("/my",
