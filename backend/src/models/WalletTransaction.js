@@ -23,7 +23,7 @@ const walletTransactionSchema = new mongoose.Schema(
 
     method: {
       type: String,
-      enum: ["cash", "online", "auto"],
+      enum: ["cash", "online", "auto","wallet"],
       required: true,
     },
 
